@@ -1,18 +1,18 @@
-aiohttp
-asyncio
-discord.py
-requests
-flask
-discord
-python-dotenv
-PyYAML
-youtube-transcript-api
-langdetect
-PyPDF2
-python-docx
-tqdm
-fake-useragent
-openai
-langchain
-langchain-community
-bs4
+aiohttp  # Async HTTP client for web requests.
+asyncio  # Library for asynchronous programming.
+discord.py  # Discord API wrapper for bot creation.
+requests  # Simplified HTTP requests.
+flask  # Micro web framework for Python applications.
+discord  # Another library for Discord interactions.
+python-dotenv  # Loads environment variables from .env files.
+PyYAML  # YAML parser and emitter for Python.
+youtube-transcript-api  # Retrieves YouTube video transcripts.
+langdetect  # Detects the language of text.
+PyPDF2  # PDF file reading and manipulation library.
+python-docx  # Creates and updates Microsoft Word (.docx) files.
+tqdm  # Progress bar for loops in Python.
+fake-useragent  # Generates random user-agent strings.
+openai  # Client library for OpenAI's API.
+langchain-community  # Community version of LangChain for LLM applications.
+bs4  # Beautiful Soup for parsing HTML and XML documents.
+numexpr  # Fast numerical expression evaluator for NumPy arrays.
