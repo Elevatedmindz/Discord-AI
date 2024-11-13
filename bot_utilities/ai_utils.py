@@ -82,7 +82,7 @@ def scrape_website(url: str):
 def search(query):
     """Perform Google search using Serper API."""
     headers = {
-        'X-API-KEY': 'ab179d0f00ae0bafe47f77e09e62b9f53b3f281d',
+        'X-API-KEY': os.getenv('SERPER_API_KEY'),  # Use environment variable instead
         'Content-Type': 'application/json'
     }
     response = requests.post(
