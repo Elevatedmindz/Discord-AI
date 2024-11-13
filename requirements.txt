@@ -15,6 +15,6 @@ fake-useragent  # Generates random user-agent strings.
 openai  # Client library for OpenAI's API.
 bs4  # Beautiful Soup for parsing HTML and XML documents.
 numexpr  # Fast numerical expression evaluator for NumPy arrays.
-langchain-core>=0.1.0
-langchain-community>=0.0.10 # Community version of LangChain for LLM applications.
-langchain-openai>=0.0.3
+langchain-core>=0.1.0,<0.2.0
+langchain-community>=0.0.10,<0.1.0
+langchain-openai>=0.0.3,<0.1.0
