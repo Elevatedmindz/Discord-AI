@@ -17,16 +17,12 @@ from pydantic import Field
 
 # LangChain community imports
 from langchain_community.chat_models import ChatOpenAI
-from langchain_community.llms import OpenAI
-from langchain_community.agents import initialize_agent, AgentType, Tool
-from langchain_community.chains import LLMMathChain
+from langchain_community.agents import AgentExecutor, Tool  # Updated import
 from langchain_community.chains.summarize import load_summarize_chain
 from langchain_community.memory import ConversationBufferWindowMemory
 
 # LangChain core imports
-from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
-from langchain_core.messages import SystemMessage
-from langchain_core.prompts import MessagesPlaceholder
+from langchain_core.prompts import PromptTemplate, SystemMessage
 from langchain_core.text_splitter import RecursiveCharacterTextSplitter
 
 # Local imports
@@ -44,27 +40,20 @@ agents = {}
 def sdxl(prompt):
     """Generate image using SDXL model."""
     response = openai.Image.create(
-        model="sdxl",
-        prompt=prompt,
-        n=1,
-        size="1024x1024"
+        model="sdxl", prompt=prompt, n=1, size="1024x1024"
     )
     return response['data'][0]["url"]
 
 def knowledge_retrieval(query):
     """Retrieve knowledge from the API."""
     data = {
-        "params": {
-            "query": query
-        },
+        "params": {"query": query},
         "project": "feda14180b9d-4ba2-9b3c-6c721dfe8f63"
     }
-    
     response = requests.post(
         "https://api-1e3042.stack.tryrelevance.com/latest/studios/6eba417b-f592-49fc-968d-6b63702995e3/trigger_limited",
         data=json.dumps(data)
     )
-    
     if response.status_code == 200:
         return response.json()["output"]["answer"]
     else:
@@ -77,15 +66,11 @@ def scrape_website(url: str):
         'Cache-Control': 'no-cache',
         'Content-Type': 'application/json',
     }
-    
     data = {"url": url}
-    
     response = requests.post(
         "https://chrome.browserless.io/content?token=0a049e5b-3387-4c51-ab6c-57647d519571",
-        headers=headers,
-        data=json.dumps(data)
+        headers=headers, data=json.dumps(data)
     )
-    
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, "html.parser")
         text = soup.get_text()
@@ -100,22 +85,18 @@ def search(query):
         'X-API-KEY': 'ab179d0f00ae0bafe47f77e09e62b9f53b3f281d',
         'Content-Type': 'application/json'
     }
-    
     response = requests.post(
         "https://google.serper.dev/search",
         headers=headers,
         data=json.dumps({"q": query})
     )
-    
     return response.json()
 
 def summary(content):
     """Generate summary of large text content."""
     llm = ChatOpenAI(temperature=0, model="gpt-4o-mini")
     text_splitter = RecursiveCharacterTextSplitter(
-        separators=["\n\n", "\n"],
-        chunk_size=10000,
-        chunk_overlap=500
+        separators=["\n\n", "\n"], chunk_size=10000, chunk_overlap=500
     )
     docs = text_splitter.create_documents([content])
     
@@ -136,20 +117,17 @@ def summary(content):
 
 def research(query):
     """Perform comprehensive research on a topic."""
+    
     system_message = SystemMessage(
-        content="""You are a world class researcher, who can do detailed research on any topic and produce facts based results; 
-        you do not make things up, you will try as hard as possible to gather facts & data to back up the research
-        
-        Please make sure you complete the objective above with the following rules:
-        1/ You will always searching for internal knowledge base first to see if there are any relevant information
-        2/ If the internal knowledge doesnt have good result, then you can go search online
-        3/ While search online:
-            a/ You will try to collect as many useful details as possible
-            b/ If there are url of relevant links & articles, you will scrape it to gather more information
-            c/ After scraping & search, you should think "is there any new things i should search & scraping based on the data I collected to increase research quality?" If answer is yes, continue; But don't do this more than 3 iteratins
-        4/ You should not make things up, you should only write facts & data that you have gathered
-        5/ In the final output, You should include all reference data & links to back up your research
-        6/ In the final output, You should include all reference data & links to back up your research"""
+        content="""You are a world class researcher, who can do detailed research on any topic and produce facts based results; you do not make things up, you will try as hard as possible to gather facts & data to back up the research. Please make sure you complete the objective above with the following rules: 
+1/ You will always search for internal knowledge base first to see if there are any relevant information 
+2/ If the internal knowledge doesn't have good result, then you can go search online 
+3/ While searching online: 
+   a/ You will try to collect as many useful details as possible 
+   b/ If there are URLs of relevant links & articles, you will scrape it to gather more information 
+   c/ After scraping & searching, you should think "is there any new things I should search & scrape based on the data I collected to increase research quality?" If answer is yes, continue; But don't do this more than 3 iterations 
+4/ You should not make things up; you should only write facts & data that you have gathered 
+5/ In the final output, you should include all reference data & links to back up your research"""
     )
 
     tools = [
@@ -166,22 +144,23 @@ def research(query):
         Tool(
             name="Scrape_website",
             func=scrape_website,
-            description="Use this to load content from a website url"
+            description="Use this to load content from a website URL"
         ),
     ]
 
-    agent = initialize_agent(
-        tools,
-        ChatOpenAI(temperature=0, model="gpt-4o-mini"),
-        agent=AgentType.OPENAI_FUNCTIONS,
+    # Initialize AgentExecutor instead of initialize_agent
+    agent_executor = AgentExecutor(
+        agent=ChatOpenAI(temperature=0, model="gpt-4o-mini"),
+        tools=tools,
         verbose=False,
-        agent_kwargs={"system_message": system_message},
+        agent_kwargs={"system_message": system_message}
     )
 
-    return agent.run(query)
+    return agent_executor.run(query)
 
 def create_agent(id, user_name, ai_name, instructions):
     """Create a new agent with memory and tools."""
+    
     system_message = SystemMessage(content=instructions)
     
     memory = ConversationBufferWindowMemory(
@@ -190,7 +169,7 @@ def create_agent(id, user_name, ai_name, instructions):
         ai_prefix=ai_name,
         user_prefix=user_name
     )
-    
+
     tools = [
         Tool(
             name="research",
@@ -200,115 +179,120 @@ def create_agent(id, user_name, ai_name, instructions):
         Tool(
             name="Scrape_website",
             func=scrape_website,
-            description="Use this to load content from a website url"
+            description="Use this to load content from a website URL"
         ),
     ]
-    
-    agent = initialize_agent(
-        tools,
-        ChatOpenAI(temperature=0, model="gpt-4o-mini"),
-        agent=AgentType.OPENAI_FUNCTIONS,
+
+    # Initialize AgentExecutor instead of initialize_agent for new agents too
+    agent_executor = AgentExecutor(
+        agent=ChatOpenAI(temperature=0, model="gpt-4o-mini"),
+        tools=tools,
         verbose=True,
-        agent_kwargs={
-            "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
-            "system_message": system_message,
-        },
+        agent_kwargs={"system_message": system_message},
         memory=memory
     )
+
+    agents[id] = agent_executor  # Store the created agent in global agents dictionary
     
-    agents[id] = agent
-    return agent
+    return agent_executor
 
 def generate_response(instructions, user_input):
     """Generate response using appropriate agent."""
+    
     id = user_input["id"]
     message = user_input["message"]
     
     if id not in agents:
-        agent = create_agent(
-            id,
-            user_input["user_name"],
-            user_input["ai_name"],
-            instructions
-        )
+        agent_executor = create_agent(id, user_input["user_name"], user_input["ai_name"], instructions)
     else:
-        agent = agents[id]
+        agent_executor = agents[id]
     
-    return agent.run(message)
+    return agent_executor.run(message)
 
 def generate_gpt4_response(prompt):
     """Generate response using GPT-4o-mini model."""
+    
     response = openai.ChatCompletion.create(
         model='gpt-4o-mini',
         messages=[{"role": "system", "name": "admin_user", "content": prompt}]
     )
+    
     return response.choices[0].message.content
 
 async def poly_image_gen(session, prompt):
     """Generate image using Pollinations AI."""
+    
     seed = random.randint(1, 100000)
+    
     image_url = f"https://image.pollinations.ai/prompt/{prompt}?seed={seed}"
+    
     async with session.get(image_url) as response:
-        image_data = await response.read()
-        return io.BytesIO(image_data)
+         image_data = await response.read()
+         
+         return io.BytesIO(image_data)
 
 async def dall_e_gen(model, prompt, size, num_images):
-    """Generate images using DALL-E."""
-    response = openai.Image.create(
-        model=model,
-        prompt=prompt,
-        n=num_images,
-        size=size,
-    )
-    
-    async with aiohttp.ClientSession() as session:
-        tasks = []
-        for image in response["data"]:
-            async with session.get(image["url"]) as response:
-                content = await response.content.read()
-                tasks.append(io.BytesIO(content))
-        return tasks
+     """Generate images using DALL-E."""
+     
+     response = openai.Image.create(
+         model=model,
+         prompt=prompt,
+         n=num_images,
+         size=size,
+     )
+     
+     async with aiohttp.ClientSession() as session:
+         tasks = []
+         for image in response["data"]:
+             async with session.get(image["url"]) as response:
+                 content = await response.content.read()
+                 tasks.append(io.BytesIO(content))
+                 
+         return tasks
 
 async def generate_image_prodia(prompt, model, sampler, seed, neg=None):
-    """Generate image using Prodia API."""
-    print("\033[1;32m(Prodia) Creating image for:\033[0m", prompt)
-    start_time = time.time()
-    
-    async def create_job(prompt, model, sampler, seed, neg):
-        negative = neg if neg else "(nsfw:1.5),verybadimagenegative_v1.3, ng_deepnegative_v1_75t, (ugly face:0.8),cross-eyed,sketches, (worst quality:2), (low quality:2), (normal quality:2), lowres, normal quality, ((monochrome)), ((grayscale)), skin spots, acnes, skin blemishes, bad anatomy, DeepNegative, facing away, tilted head, {Multiple people}, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worstquality, low quality, normal quality, jpegartifacts, signature, watermark, username, blurry, bad feet, cropped, poorly drawn hands, poorly drawn face, mutation, deformed, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, extra fingers, fewer digits, extra limbs, extra arms,extra legs, malformed limbs, fused fingers, too many fingers, long neck, cross-eyed,mutated hands, polar lowres, bad body, bad proportions, gross proportions, text, error, missing fingers, missing arms, missing legs, extra digit, extra arms, extra leg, extra foot, repeating hair, nsfw, [[[[[bad-artist-anime, sketch by bad-artist]]]]], [[[mutation, lowres, bad hands, [text, signature, watermark, username], blurry, monochrome, grayscale, realistic, simple background, limited palette]]], close-up, (swimsuit, cleavage, armpits, ass, navel, cleavage cutout), (forehead jewel:1.2), (forehead mark:1.5), (bad and mutated hands:1.3), (worst quality:2.0), (low quality:2.0), (blurry:2.0), multiple limbs, bad anatomy, (interlocked fingers:1.2),(interlocked leg:1.2), Ugly Fingers, (extra digit and hands and fingers and legs and arms:1.4), crown braid, (deformed fingers:1.2), (long fingers:1.2)"
-        
-        params = {
-            'new': 'true',
-            'prompt': quote(prompt),
-            'model': model,
-            'negative_prompt': negative,
-            'steps': '100',
-            'cfg': '9.5',
-            'seed': str(seed),
-            'sampler': sampler,
-            'upscale': 'True',
-            'aspect_ratio': 'square'
-        }
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.get('https://api.prodia.com/generate', params=params) as response:
-                data = await response.json()
-                return data['job']
-    
-    job_id = await create_job(prompt, model, sampler, seed, neg)
-    headers = {
-        'authority': 'api.prodia.com',
-        'accept': '*/*',
-    }
-    
-    async with aiohttp.ClientSession() as session:
-        while True:
-            async with session.get(f'https://api.prodia.com/job/{job_id}', headers=headers) as response:
-                json = await response.json()
-                if json['status'] == 'succeeded':
-                    async with session.get(f'https://images.prodia.xyz/{job_id}.png?download=1', headers=headers) as response:
-                        content = await response.content.read()
-                        img_file_obj = io.BytesIO(content)
-                        duration = time.time() - start_time
-                        print(f"\033[1;34m(Prodia) Finished image creation\n\033[0mJob id: {job_id}  Prompt: {prompt} in {duration} seconds.")
-                        return img_file_obj
+     """Generate image using Prodia API."""
+     
+     print("\033[1;32m(Prodia) Creating image for:\033[0m", prompt)
+     start_time = time.time()
+
+     async def create_job(prompt, model, sampler, seed, neg):
+         negative = neg if neg else "(nsfw:1.5),verybadimagenegative_v1.3,..."
+
+         params = {
+             'new': 'true',
+             'prompt': quote(prompt),
+             'model': model,
+             'negative_prompt': negative,
+             'steps': '100',
+             'cfg': '9.5',
+             'seed': str(seed),
+             'sampler': sampler,
+             'upscale': 'True',
+             'aspect_ratio': 'square'
+         }
+
+         async with aiohttp.ClientSession() as session:
+             async with session.get('https://api.prodia.com/generate', params=params) as response:
+                 data = await response.json()
+                 return data['job']
+
+     job_id = await create_job(prompt, model, sampler, seed, neg)
+
+     headers = {
+         'authority': 'api.prodia.com',
+         'accept': '*/*',
+     }
+
+     async with aiohttp.ClientSession() as session:
+         while True:
+             async with session.get(f'https://api.prodia.com/job/{job_id}', headers=headers) as response:
+                 json_response = await response.json()
+                 if json_response['status'] == 'succeeded':
+                     async with session.get(f'https://images.prodia.xyz/{job_id}.png?download=1', headers=headers) as img_response:
+                         content = await img_response.content.read()
+                         img_file_obj = io.BytesIO(content)
+                         duration = time.time() - start_time
+                         print(f"\033[1;34m(Prodia) Finished image creation\n\033[0mJob id: {job_id} Prompt: {prompt} in {duration} seconds.")
+                         return img_file_obj
+
