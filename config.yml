@@ -4,7 +4,7 @@ MAX_SEARCH_RESULTS: 4 # Set the maximum search results for internet access DONT 
 ALLOW_DM: true # Set to true to allow direct messages
 SMART_MENTION: true # Set to true to enable smart mention feature
 
-GPT_MODEL: gpt-3.5-turbo-16k-0613 # Model used for chat completion
+GPT_MODEL: GPT-4o mini # Model used for chat completion
 
 MAX_HISTORY: 8 # Set the maximum message history
 
@@ -13,7 +13,7 @@ AI_NSFW_CONTENT_FILTER: true # Enable NSFW AI detector to detect NSFW prompt on 
 
 LANGUAGE: en # Specify the language code (check 'lang' folder for valid codes)
 
-INSTRUCTIONS: ai-joe # Specify the instruction prompt to use (check 'instructions' folder for valid prompts)
+INSTRUCTIONS: echo-ai # Specify the instruction prompt to use (check 'instructions' folder for valid prompts)
 # To add custom prompts, create a .txt file like 'custom.txt' in `instructions` folder and set INSTRUCTIONS as 'custom'
 
 Discord: https://discord.gg/6MT3CZauT8
@@ -21,9 +21,11 @@ Github: https://github.com/mishalhossin/Discord-AI-Chatbot
 
 TRIGGER:
   - chatbot
-  - ai joe
-  - joe
+  - ai echo
+  - echo
   - hi
+  - help
+  - yo
   - bot nickname
   - bot alias
   - bot name
@@ -50,4 +52,9 @@ BLACKLIST_WORDS:
   - XXX
   - sex
   - erotic
+  - porn
+  - pussy
+  - dick
+  - bitch
+  - cunt
 # Blacklisted words for /Imagine command this is disabled if you enable AI_NSFW_CONTENT_FILTER
