@@ -3,7 +3,6 @@ asyncio  # Library for asynchronous programming.
 discord.py  # Discord API wrapper for bot creation.
 requests  # Simplified HTTP requests.
 flask  # Micro web framework for Python applications.
-discord  # Another library for Discord interactions.
 python-dotenv  # Loads environment variables from .env files.
 PyYAML  # YAML parser and emitter for Python.
 youtube-transcript-api  # Retrieves YouTube video transcripts.
