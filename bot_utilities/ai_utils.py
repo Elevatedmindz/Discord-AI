@@ -177,16 +177,3 @@ def generate_response(instructions, user_input):
         id, user_input["user_name"], user_input["ai_name"], instructions
     )
     return agent.run(message)
-```
-
----
-
-### Key Changes
-1. **Updated Imports:** 
-   - Replaced `langchain_community` imports with core `langchain` equivalents.
-2. **Legacy `AgentExecutor`:** 
-   - Migrated to `initialize_agent` and `AgentType` for modern LangChain compatibility.
-3. **Simplified Summarization:**
-   - Updated the `load_summarize_chain` to align with the latest API.
-
-Let me know if you need further adjustments! 🚀
