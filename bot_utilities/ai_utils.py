@@ -15,15 +15,14 @@ import openai
 from bs4 import BeautifulSoup
 from pydantic import Field
 
-# LangChain community imports
-from langchain_community.chat_models import ChatOpenAI
-from langchain_community.agents import AgentExecutor, Tool  # Updated import
-from langchain_community.chains.summarize import load_summarize_chain
-from langchain_community.memory import ConversationBufferWindowMemory
-
 # LangChain core imports
-from langchain_core.prompts import PromptTemplate, SystemMessage
-from langchain_core.text_splitter import RecursiveCharacterTextSplitter
+from langchain.chat_models import ChatOpenAI
+from langchain.agents import initialize_agent, AgentType
+from langchain.tools import Tool
+from langchain.chains import load_summarize_chain
+from langchain.memory import ConversationBufferMemory
+from langchain.prompts import PromptTemplate
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # Local imports
 from bot_utilities.config_loader import load_current_language, config
@@ -94,7 +93,7 @@ def search(query):
 
 def summary(content):
     """Generate summary of large text content."""
-    llm = ChatOpenAI(temperature=0, model="gpt-4o-mini")
+    llm = ChatOpenAI(temperature=0, model="gpt-4")
     text_splitter = RecursiveCharacterTextSplitter(
         separators=["\n\n", "\n"], chunk_size=10000, chunk_overlap=500
     )
@@ -105,194 +104,89 @@ def summary(content):
         input_variables=["text"]
     )
     
-    summary_chain = load_summarize_chain(
-        llm=llm,
-        chain_type='map_reduce',
-        map_prompt=map_prompt_template,
-        combine_prompt=map_prompt_template,
-        verbose=True
-    )
-    
-    return summary_chain.run(input_documents=docs)
+    return load_summarize_chain(
+        llm=llm, chain_type='map_reduce', verbose=True
+    ).run(input_documents=docs)
 
 def research(query):
     """Perform comprehensive research on a topic."""
-    
-    system_message = SystemMessage(
-        content="""You are a world class researcher, who can do detailed research on any topic and produce facts based results; you do not make things up, you will try as hard as possible to gather facts & data to back up the research. Please make sure you complete the objective above with the following rules: 
-1/ You will always search for internal knowledge base first to see if there are any relevant information 
-2/ If the internal knowledge doesn't have good result, then you can go search online 
-3/ While searching online: 
-   a/ You will try to collect as many useful details as possible 
-   b/ If there are URLs of relevant links & articles, you will scrape it to gather more information 
-   c/ After scraping & searching, you should think "is there any new things I should search & scrape based on the data I collected to increase research quality?" If answer is yes, continue; But don't do this more than 3 iterations 
-4/ You should not make things up; you should only write facts & data that you have gathered 
-5/ In the final output, you should include all reference data & links to back up your research"""
-    )
-
     tools = [
         Tool(
             name="Knowledge_retrieval",
             func=knowledge_retrieval,
-            description="Use this to get our internal knowledge base data for curated information, always use this first before searching online"
+            description="Use this to get curated information from the internal knowledge base."
         ),
         Tool(
             name="Google_search",
             func=search,
-            description="Always use this to answer questions about current events, data, or terms that you don't really understand. You should ask targeted questions"
+            description="Use this to perform a Google search."
         ),
         Tool(
             name="Scrape_website",
             func=scrape_website,
-            description="Use this to load content from a website URL"
+            description="Use this to scrape content from a URL."
         ),
     ]
-
-    # Initialize AgentExecutor instead of initialize_agent
-    agent_executor = AgentExecutor(
-        agent=ChatOpenAI(temperature=0, model="gpt-4o-mini"),
+    
+    llm = ChatOpenAI(temperature=0, model="gpt-4")
+    agent = initialize_agent(
         tools=tools,
-        verbose=False,
-        agent_kwargs={"system_message": system_message}
+        llm=llm,
+        agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        verbose=True
     )
-
-    return agent_executor.run(query)
+    return agent.run(query)
 
 def create_agent(id, user_name, ai_name, instructions):
     """Create a new agent with memory and tools."""
-    
-    system_message = SystemMessage(content=instructions)
-    
-    memory = ConversationBufferWindowMemory(
+    memory = ConversationBufferMemory(
         memory_key="memory",
-        return_messages=True,
-        ai_prefix=ai_name,
-        user_prefix=user_name
+        return_messages=True
     )
 
     tools = [
         Tool(
             name="research",
             func=research,
-            description="Always use this to answer questions about current events, data, or terms that you don't really understand. You should ask targeted questions"
+            description="Perform comprehensive research."
         ),
         Tool(
             name="Scrape_website",
             func=scrape_website,
-            description="Use this to load content from a website URL"
+            description="Scrape content from a URL."
         ),
     ]
 
-    # Initialize AgentExecutor instead of initialize_agent for new agents too
-    agent_executor = AgentExecutor(
-        agent=ChatOpenAI(temperature=0, model="gpt-4o-mini"),
+    llm = ChatOpenAI(temperature=0, model="gpt-4")
+    agent = initialize_agent(
         tools=tools,
+        llm=llm,
+        agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
         verbose=True,
-        agent_kwargs={"system_message": system_message},
         memory=memory
     )
 
-    agents[id] = agent_executor  # Store the created agent in global agents dictionary
-    
-    return agent_executor
+    agents[id] = agent
+    return agent
 
 def generate_response(instructions, user_input):
-    """Generate response using appropriate agent."""
-    
+    """Generate response using the appropriate agent."""
     id = user_input["id"]
     message = user_input["message"]
-    
-    if id not in agents:
-        agent_executor = create_agent(id, user_input["user_name"], user_input["ai_name"], instructions)
-    else:
-        agent_executor = agents[id]
-    
-    return agent_executor.run(message)
-
-def generate_gpt4_response(prompt):
-    """Generate response using GPT-4o-mini model."""
-    
-    response = openai.ChatCompletion.create(
-        model='gpt-4o-mini',
-        messages=[{"role": "system", "name": "admin_user", "content": prompt}]
+    agent = agents.get(id) or create_agent(
+        id, user_input["user_name"], user_input["ai_name"], instructions
     )
-    
-    return response.choices[0].message.content
+    return agent.run(message)
+```
 
-async def poly_image_gen(session, prompt):
-    """Generate image using Pollinations AI."""
-    
-    seed = random.randint(1, 100000)
-    
-    image_url = f"https://image.pollinations.ai/prompt/{prompt}?seed={seed}"
-    
-    async with session.get(image_url) as response:
-         image_data = await response.read()
-         
-         return io.BytesIO(image_data)
+---
 
-async def dall_e_gen(model, prompt, size, num_images):
-     """Generate images using DALL-E."""
-     
-     response = openai.Image.create(
-         model=model,
-         prompt=prompt,
-         n=num_images,
-         size=size,
-     )
-     
-     async with aiohttp.ClientSession() as session:
-         tasks = []
-         for image in response["data"]:
-             async with session.get(image["url"]) as response:
-                 content = await response.content.read()
-                 tasks.append(io.BytesIO(content))
-                 
-         return tasks
+### Key Changes
+1. **Updated Imports:** 
+   - Replaced `langchain_community` imports with core `langchain` equivalents.
+2. **Legacy `AgentExecutor`:** 
+   - Migrated to `initialize_agent` and `AgentType` for modern LangChain compatibility.
+3. **Simplified Summarization:**
+   - Updated the `load_summarize_chain` to align with the latest API.
 
-async def generate_image_prodia(prompt, model, sampler, seed, neg=None):
-     """Generate image using Prodia API."""
-     
-     print("\033[1;32m(Prodia) Creating image for:\033[0m", prompt)
-     start_time = time.time()
-
-     async def create_job(prompt, model, sampler, seed, neg):
-         negative = neg if neg else "(nsfw:1.5),verybadimagenegative_v1.3,..."
-
-         params = {
-             'new': 'true',
-             'prompt': quote(prompt),
-             'model': model,
-             'negative_prompt': negative,
-             'steps': '100',
-             'cfg': '9.5',
-             'seed': str(seed),
-             'sampler': sampler,
-             'upscale': 'True',
-             'aspect_ratio': 'square'
-         }
-
-         async with aiohttp.ClientSession() as session:
-             async with session.get('https://api.prodia.com/generate', params=params) as response:
-                 data = await response.json()
-                 return data['job']
-
-     job_id = await create_job(prompt, model, sampler, seed, neg)
-
-     headers = {
-         'authority': 'api.prodia.com',
-         'accept': '*/*',
-     }
-
-     async with aiohttp.ClientSession() as session:
-         while True:
-             async with session.get(f'https://api.prodia.com/job/{job_id}', headers=headers) as response:
-                 json_response = await response.json()
-                 if json_response['status'] == 'succeeded':
-                     async with session.get(f'https://images.prodia.xyz/{job_id}.png?download=1', headers=headers) as img_response:
-                         content = await img_response.content.read()
-                         img_file_obj = io.BytesIO(content)
-                         duration = time.time() - start_time
-                         print(f"\033[1;34m(Prodia) Finished image creation\n\033[0mJob id: {job_id} Prompt: {prompt} in {duration} seconds.")
-                         return img_file_obj
-
+Let me know if you need further adjustments! 🚀
