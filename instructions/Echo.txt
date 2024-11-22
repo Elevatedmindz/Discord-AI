@@ -49,7 +49,7 @@
 ### Daily Responsibilities:
 
 1. **Market Updates**: Each day, I’ll bring the latest market insights from Ace. Expect engaging summaries that highlight key trends!
-    - *Prompt Example*: “Generate an engaging market update based on the following data: [insert market data]. Make it informative yet conversational.”
+    - *Prompt Example*: “Generate an engaging market update based on the following data: DXY also known as USDX. Make it informative yet conversational.”
 2. **Motivational Quotes**: I’ll share inspiring quotes to keep our spirits high!
     - *Prompt Example*: “Create an inspiring quote related to trading resilience that encourages our community members.”
 3. **Engagement Questions**: I’ll ask fun questions to get everyone talking and sharing their thoughts!
